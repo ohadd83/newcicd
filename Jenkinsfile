@@ -2,49 +2,40 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "simple-app"
+        IMAGE_NAME = "ohadd306/simple-app"
         IMAGE_TAG = "${BUILD_NUMBER}"
-        FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Build Image') {
             steps {
-                checkout scm
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
             }
         }
 
-        stage('Install') {
-            agent {
-                docker { image 'node:18' }
-            }
+        stage('Push to DockerHub') {
             steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Test') {
-            agent {
-                docker { image 'node:18' }
-            }
-            steps {
-                sh 'npm test'
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                sh "docker build -t ${FULL_IMAGE} ."
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh """
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    """
+                }
             }
         }
 
         stage('Deploy') {
             steps {
                 sh """
+                    docker pull ${IMAGE_NAME}:${IMAGE_TAG}
                     docker stop simple-app || true
                     docker rm simple-app || true
-                    docker run -d -p 8087:3000 --name simple-app ${FULL_IMAGE}
+                    docker run -d -p 8087:3000 --name simple-app ${IMAGE_NAME}:${IMAGE_TAG}
                 """
             }
         }
