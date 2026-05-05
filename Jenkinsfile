@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "ohadd306/simple-app"
+        IMAGE_NAME = "ohadd306/app-ohad"
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
